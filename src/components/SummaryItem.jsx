@@ -1,31 +1,68 @@
-import { AiFillDelete } from 'react-icons/ai';
-import { useDispatch } from 'react-redux';
-import { remove, updateQuantity } from '../redux/Slices/CartSlice';
-import { useState } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
+import { AiFillDelete } from 'react-icons/ai'
+import { useState, useEffect, useCallback } from 'react'
+import { doc, updateDoc, arrayRemove, arrayUnion } from 'firebase/firestore'
+import { db, auth } from '../components/firebase'
+import React from 'react'
 
-const CartItem = ({ item }) => {
-  const dispatch = useDispatch();
-  const [quantity, setQuantity] = useState(item.quantity || 1);
+const CartItem = React.memo(({ item }) => {
+  const [quantity, setQuantity] = useState(item.quantity || 1)
+  const user = auth.currentUser
 
-  const removeFromCart = () => {
-    dispatch(remove(item.id));
-    // toast.success('Item Removed');
-  };
+  // Function to update quantity in Firestore
+  const updateQuantityInFirestore = useCallback(
+    async newQuantity => {
+      if (user) {
+        const userCartRef = doc(db, 'carts', user.uid)
+        try {
+          const updatedItem = { ...item, quantity: newQuantity }
 
-  const handleQuantityChange = (e) => {
-    const value = e.target.value;
-    const isValid = /^\d+$/.test(value) && parseInt(value, 10) > 0;
+          // Remove the old item and add the updated one
+          await updateDoc(userCartRef, {
+            items: arrayRemove(item) // Remove the old item
+          })
 
-    if (isValid) {
-      setQuantity(value);
-      dispatch(updateQuantity({ id: item.id, quantity: parseInt(value, 10) }));
+          await updateDoc(userCartRef, {
+            items: arrayUnion(updatedItem) // Add the updated item
+          })
+        } catch (error) {
+          console.error('Error updating item quantity: ', error)
+        }
+      }
+    },
+    [item, user]
+  )
+
+  const removeFromCart = useCallback(async () => {
+    if (user) {
+      const userCartRef = doc(db, 'carts', user.uid)
+      try {
+        await updateDoc(userCartRef, {
+          items: arrayRemove(item)
+        })
+      } catch (error) {
+        console.error('Error removing item from cart: ', error)
+      }
     } else {
-      setQuantity('1');
-      e.target.value = ''; // Clear the input field
-      alert('Please enter a valid quantity (whole number greater than 0)');
+      alert('You need to be logged in to remove items from the cart')
     }
-  };
+  }, [item, user])
+
+  const handleQuantityChange = useCallback(
+    e => {
+      const value = e.target.value
+      const isValid = /^\d+$/.test(value) && parseInt(value, 10) > 0
+
+      if (isValid) {
+        setQuantity(value)
+        updateQuantityInFirestore(parseInt(value, 10))
+      } else {
+        setQuantity('1')
+        e.target.value = '' // Clear the input field
+        alert('Please enter a valid quantity (whole number greater than 0)')
+      }
+    },
+    [updateQuantityInFirestore]
+  )
 
   return (
     <div className='flex items-center p-2 md:p-5 justify-between mt-2 mb-2 md:mx-5'>
@@ -39,7 +76,7 @@ const CartItem = ({ item }) => {
             {item.description}
           </h1>
           <div className='flex items-center justify-between'>
-            <p className='font-bold text-lg text-green-600'>{item.price}</p>
+            <p className='font-bold text-lg text-green-600'>${item.price}</p>
             <input
               type='number'
               value={quantity}
@@ -57,9 +94,8 @@ const CartItem = ({ item }) => {
           </div>
         </div>
       </div>
-      <ToastContainer />
     </div>
-  );
-};
+  )
+})
 
-export default CartItem;
+export default CartItem

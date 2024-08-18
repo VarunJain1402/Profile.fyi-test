@@ -15,7 +15,6 @@ const Home = () => {
       const res = await fetch(API_URL);
       const data = await res.json();      
       setPosts(data);
-      console.log(process.env.React_App_Access_Key)
     }
     catch(error) {
       setPosts([]);

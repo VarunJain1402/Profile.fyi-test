@@ -1,28 +1,48 @@
-import React, { useState } from 'react'
-import { useSelector } from 'react-redux'
-import { NavLink } from 'react-router-dom'
-import { auth } from './firebase'
-import { FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa'
+import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
+import { auth, db } from './firebase';
+import { FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const Navbar = () => {
-  const { cart } = useSelector(state => state)
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
 
-  async function handleLogout () {
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (user) {
+      const userCartRef = doc(db, 'carts', user.uid);
+
+      // Listen for real-time updates to the user's cart
+      const unsubscribe = onSnapshot(userCartRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const cartItems = docSnapshot.data().items || [];
+          const total = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+          setTotalItems(total);
+        } else {
+          setTotalItems(0); // Set to 0 if no items exist
+        }
+      });
+
+      return () => unsubscribe(); // Cleanup the subscription on unmount
+    }
+  }, []);
+
+  async function handleLogout() {
     try {
-      await auth.signOut()
-      window.location.href = '/login'
-      console.log('User logged out successfully!')
+      await auth.signOut();
+      window.location.href = '/login';
+      console.log('User logged out successfully!');
     } catch (error) {
-      console.error('Error logging out:', error.message)
+      console.error('Error logging out:', error.message);
     }
   }
 
   return (
-    <div className='bg-gray-900 shadow border-solid border-t-2 border-gradient-to-r from-blue-400 to-pink-500'>
+    <div className='bg-blue-600 shadow border-solid border-t-2 border-gradient-to-r from-blue-400 to-pink-500'>
       <nav className='flex justify-between items-center h-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8'>
         <NavLink to='/'>
-          <div className='text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-500'>
+          <div className='text-3xl font-medium text-transparent bg-clip-text text-white'>
             ShopNex
           </div>
         </NavLink>
@@ -33,12 +53,12 @@ const Navbar = () => {
           <NavLink to='/cart'>
             <div className='relative'>
               <FaShoppingCart className='text-2xl' />
-              {cart.length > 0 && (
+              {totalItems > 0 && (
                 <span
                   className='absolute -top-1 -right-2 bg-green-600 text-xs w-5 h-5 flex 
                     justify-center items-center animate-bounce rounded-full text-white'
                 >
-                  {cart.length}
+                  {totalItems}
                 </span>
               )}
             </div>
@@ -58,7 +78,7 @@ const Navbar = () => {
         </div>
       </nav>
       {isOpen && (
-        <div className='md:hidden bg-gray-900 text-gray-100 px-4 pb-4'>
+        <div className='md:hidden bg-gray-900 text-gray-100 px-4 pb-4 z-10'>
           <NavLink to='/' onClick={() => setIsOpen(false)}>
             <p className='py-2'>Home</p>
           </NavLink>
@@ -67,8 +87,8 @@ const Navbar = () => {
           </NavLink>
           <NavLink
             onClick={() => {
-              setIsOpen(false)
-              handleLogout()
+              setIsOpen(false);
+              handleLogout();
             }}
           >
             <p className='py-2'>Logout</p>
@@ -76,7 +96,7 @@ const Navbar = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;
