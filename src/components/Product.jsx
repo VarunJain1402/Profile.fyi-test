@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, getDoc,setDoc,  updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../components/firebase";
 
 const Product = ({ post }) => {
@@ -16,6 +16,7 @@ const Product = ({ post }) => {
           const cartData = cartSnapshot.data().items;
           const itemInCart = cartData.some(item => item.id === post.id);
           setInCart(itemInCart);
+
         }
       }
     };
@@ -23,14 +24,28 @@ const Product = ({ post }) => {
     checkIfInCart();
   }, [user, post.id]);
 
+
   const addToCart = async () => {
     if (user) {
       const userCartRef = doc(db, "carts", user.uid);
+
       try {
-        await updateDoc(userCartRef, {
-          items: arrayUnion({ ...post, quantity: 1 })
-        });
-        setInCart(true);
+        // Check if the user's cart document exists
+        const docSnap = await getDoc(userCartRef);
+
+        if (docSnap.exists()) {
+          // If the document exists, update it
+          await updateDoc(userCartRef, {
+            items: arrayUnion({ ...post, quantity: 1 }), // Add the item with an initial quantity of 1
+          });
+        } else {
+          // If the document doesn't exist, create it with the item
+          await setDoc(userCartRef, {
+            items: [{ ...post, quantity: 1 }],
+          });
+        }
+        setInCart(true)
+
       } catch (error) {
         console.error("Error adding item to cart: ", error);
       }
