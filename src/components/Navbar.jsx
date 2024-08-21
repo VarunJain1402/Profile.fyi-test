@@ -82,8 +82,8 @@ const Navbar = () => {
           <NavLink to='/' onClick={() => setIsOpen(false)}>
             <p className='py-2'>Home</p>
           </NavLink>
-          <NavLink to='/summary' onClick={() => setIsOpen(false)}>
-            <p className='py-2'>Summary</p>
+          <NavLink to='/cart' onClick={() => setIsOpen(false)}>
+            <p className='py-2'>Cart</p>
           </NavLink>
           <NavLink
             onClick={() => {
